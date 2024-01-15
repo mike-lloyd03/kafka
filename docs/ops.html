@@ -3956,24 +3956,30 @@ controller.listener.names=CONTROLLER</pre>
     While the cluster is still in migration mode, it is possible to revert to ZK mode. In order to do this:
     <ol>
       <li>
-        For each KRaft broker:
+        If you have brokers in KRaft mode, for each one:
         <ul>
           <li>Stop the broker.</li>
           <li>Remove the __cluster_metadata directory on the broker.</li>
-          <li>Remove the <code>zookeeper.metadata.migration.enable</code> configuration and the KRaft controllers related configurations like <code>controller.quorum.voters</code>
-            and <code>controller.listener.names</code> from the broker configuration properties file.</li>
-          <li>Restart the broker in ZooKeeper mode.</li>
+          <li>Reconfigure the broker so that it will restart in ZK mode, by removing process.roles
+              and re-adding zookeeper.connect, and so forth.</li>
+          <li>Restart the broker.</li>
         </ul>
       </li>
-      <li>Take down the KRaft quorum.</li>
+      <li>Once all brokers are in ZK mode, take down the KRaft quorum.</li>
       <li>Using ZooKeeper shell, delete the controller node using <code>rmr /controller</code>, so that a ZooKeeper-based broker can become the next controller.</li>
+      <li>If desired (this step is optional) roll the brokers again, reconfiguring each without zookeeper.metadata.migration.enable.</li>
     </ol>
+    <p>Note that you must not remove the zookeeper.metadata.migration.enable configuration on each broker until the KRaft quorum has been completely removed.</p>
 
   <h3>Finalizing the migration</h3>
   <p>
     Once all brokers have been restarted in KRaft mode, the last step to finalize the migration is to take the
     KRaft controllers out of migration mode. This is done by removing the "zookeeper.metadata.migration.enable"
     property from each of their configs and restarting them one at a time.
+  </p>
+  <p>
+    Once the migration has been finalized, you can safely deprovision your ZooKeeper cluster, assuming you are
+    not using it for anything else. After this point, it is no longer possible to revert to ZooKeeper mode.
   </p>
 
   <pre>
