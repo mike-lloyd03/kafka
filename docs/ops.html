@@ -3870,7 +3870,7 @@ zookeeper.connect=localhost:2181
   <p><em>Note: The KRaft cluster <code>node.id</code> values must be different from any existing ZK broker <code>broker.id</code>.
   In KRaft-mode, the brokers and controllers share the same Node ID namespace.</em></p>
 
-  <h3>Enabling the migration on the brokers</h3>
+  <h3>Enabling zookeeper.metadata.migration.enable on the brokers</h3>
   <p>
     Once the KRaft controller quorum has been started, the brokers will need to be reconfigured and restarted. Brokers
     may be restarted in a rolling fashion to avoid impacting cluster availability. Each broker requires the
@@ -3952,25 +3952,6 @@ controller.listener.names=CONTROLLER</pre>
     Each broker is restarted with a KRaft configuration until the entire cluster is running in KRaft mode.
   </p>
 
-  <h3>Reverting to ZooKeeper mode During the Migration</h3>
-    While the cluster is still in migration mode, it is possible to revert to ZK mode. In order to do this:
-    <ol>
-      <li>
-        If you have brokers in KRaft mode, for each one:
-        <ul>
-          <li>Stop the broker.</li>
-          <li>Remove the __cluster_metadata directory on the broker.</li>
-          <li>Reconfigure the broker so that it will restart in ZK mode, by removing process.roles
-              and re-adding zookeeper.connect, and so forth.</li>
-          <li>Restart the broker.</li>
-        </ul>
-      </li>
-      <li>Once all brokers are in ZK mode, take down the KRaft quorum.</li>
-      <li>Using ZooKeeper shell, delete the controller node using <code>rmr /controller</code>, so that a ZooKeeper-based broker can become the next controller.</li>
-      <li>If desired (this step is optional) roll the brokers again, reconfiguring each without zookeeper.metadata.migration.enable.</li>
-    </ol>
-    <p>Note that you must not remove the zookeeper.metadata.migration.enable configuration on each broker until the KRaft quorum has been completely removed.</p>
-
   <h3>Finalizing the migration</h3>
   <p>
     Once all brokers have been restarted in KRaft mode, the last step to finalize the migration is to take the
@@ -3997,6 +3978,75 @@ listeners=CONTROLLER://:9093
 # zookeeper.connect=localhost:2181
 
 # Other configs ...</pre>
+
+  <h3>Reverting to ZooKeeper mode During the Migration</h3>
+  <p>
+    While the cluster is still in migration mode, it is possible to revert to ZK mode.  The process
+    to follow depends on how far the migration has progressed. In order to find out how to revert,
+    select the <b>final</b> migration step that you have <b>completed</b> in this table.
+  </p>
+  <p>
+    Note that the directions given here assume that each step was fully completed, and they were
+    done in order. So, for example, we assume that if "Enabling the migration on the brokers" was completed,
+    "Provisioning the KRaft controller quorum" was also fully completed previously.
+  </p>
+  <p>
+    If you did not fully complete any step, back out whatever you have done and then follow revert
+    directions for the last fully completed step.
+  </p>
+
+  <table class="data-table">
+      <tbody>
+      <tr>
+        <th>Final Migration Section Completed</th>
+        <th>Directions for Reverting</th>
+        <th>Notes</th>
+      </tr>
+      <tr>
+        <td>Preparing for migration</td>
+        <td>The prepartion section does not involve leaving ZK mode. So there is nothing to do in
+            the case of a revert.</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>Provisioning the KRaft controller quorum</td>
+        <td>Deprovision the KRaft controller quorum, and then you are done.</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>Enabling zookeeper.metadata.migration.enable on the brokers</td>
+        <td>Roll the broker cluster with zookeeper.metadata.migration.enable=false. Then,
+            deprovision the KRaft controller quorum. Then you are done.</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>Migrating brokers to KRaft</td>
+        <td><p>
+            Roll the broker cluster with the process.roles configuration omitted, node.id
+            replaced with broker.id, and the zookeeper.connect configuration set to a valid
+            value.
+          </p>
+           <p>
+            After this roll is fully complete, perform a second roll where you set
+            zookeeper.metadata.migration.enable=false. Then,
+            deprovision the KRaft controller quorum. Then you are done.
+          </p>
+        </td>
+        <td>
+            Make sure that on the first roll, zookeeper.metadata.migration.enable remains set to
+            true. <b>Do not set it to false until the second roll.</b>
+        </td>
+      </tr>
+      <tr>
+        <td>Finalizing the migration</td>
+        <td>
+            If you have finalized the ZK migration, then you cannot revert.
+        </td>
+        <td>
+        </td>
+      </tr>
+    </tbody>
+ </table>
 
 
 <h3 class="anchor-heading"><a id="tiered_storage" class="anchor-link"></a><a href="#kraft">6.11 Tiered Storage</a></h3>
